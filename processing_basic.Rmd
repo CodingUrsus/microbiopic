@@ -128,6 +128,7 @@ burning_tree_plot_s2 <- second_image_ordered %>%
 
 comb_plot <- ggarrange(burning_tree_plot_s1, burning_tree_plot_s2)
 
+"some shti"
 
 ```
 
