@@ -1,0 +1,135 @@
+---
+title: "processing_basic"
+author: "ozzie"
+date: "2022-10-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r libs_and_data, include=FALSE}
+library(tidyverse)
+library(ape)
+library(phytools)
+library(ggpubr)
+
+## read in your tree
+basic_tree <- read.tree("C:/Users/hammera/Documents/R_projects/Microbiopics/asv_prunedguides_rooted.nwk")
+
+# count data table for the asvs in the tree
+fresh_asv_table <- read.table("C:/Users/hammera/Documents/R_projects/Microbiopics/asv_table_new.tab", row.names=1, header=TRUE)
+
+basic_asv_table <- fresh_asv_table/rowSums(fresh_asv_table)
+```
+
+```{r custom_functions, include=FALSE}
+## needs to be ultrametric
+make_ultrametric_tree <- function(new_tree){
+  if(is.ultrametric(new_tree)){
+    return(new_tree)
+  }
+  else{
+    return(ape::chronos(new_tree, quiet=T, lambda=0))
+  }
+}
+
+# need to define the minimum number of sub-clustered groups that are still informative
+# basically this script just cuts the tree at a bunch of different points, and you can
+# use the output to determine the point at which you think there isn't a lot of information being given. You may consider plotting this then just choosing an elbow point
+determine_tree_chopping_point <- function(your_hclust){
+  max_branch_len <- max(your_hclust$height)
+  tree_groups <- sapply(1:1000, function(x) length(unique(cutree(your_hclust, h=x*0.001*max_branch_len))))
+  return(tree_groups)
+}
+
+# this function iterates over the hclust object and cuts the tree into small
+# bits, returning the group membership number for each asv at each cut
+# at finally returning a table of ASV membership at each cut over the whole tree
+axe_the_tree <- function(tree_of_choice, number_cuts, max_stump_position){
+  if(missing(max_stump_position)){
+    max_stump_position=1
+  }
+  if(missing(number_cuts)){
+    number_cuts=200
+  }
+  cut_step_length = (max_stump_position/number_cuts)
+  membership_at_cuts <- sapply(1:number_cuts, function(x) cutree(tree_of_choice, h=x*cut_step_length))
+  return(membership_at_cuts)
+}
+
+# this function takes an asv table, the output of a call to axe_the_tree
+# and iterates over one sample and one column to generate the grouped output counts
+# this should be called using sapply or some other iterative option to produce the 
+# microbe image for all the data
+make_tree_image <- function(the_asv_table, the_grouped_output, group_level, asv_sample_row){
+  grouped_tree_slice <- data.frame(ASVs = colnames(the_asv_table),
+                         asv_counts = as.numeric(as.vector(the_asv_table[asv_sample_row,]))) %>%
+  inner_join(data.frame(ASVs = rownames(the_grouped_output),
+                        groups = the_grouped_output[,group_level]), by="ASVs") %>%
+  group_by(groups) %>%
+  mutate(group_count = sum(asv_counts)) %>%
+  ungroup()
+  return(grouped_tree_slice$group_count)
+}
+```
+
+```{r tree_cutters}
+ultra_tree <- make_ultrametric_tree(basic_tree)
+
+tclust <- as.hclust(ultra_tree)
+
+tree_group_points <- determine_tree_chopping_point(tclust)
+
+tree_chopping_df <- data.frame(number_of_groups = tree_group_points, operator=seq(1,1000)*0.002)
+
+tree_chopping_df %>%
+  ggplot(aes(x=operator, y=number_of_groups)) +
+  geom_smooth(se=F)+
+  theme_linedraw() +
+  xlab("Position on Tree") +
+  ylab("Number of Groups at Cut")
+
+test_obj <- data.frame(sapply(1:100, function(x) cutree(tclust, h=x*(0.5/100))))
+
+first_image <- data.frame(sapply(1:ncol(test_obj), function(x) make_tree_image(basic_asv_table, test_obj, x, 1)))
+rownames(first_image) <- colnames(basic_asv_table)
+
+first_image_ordered <- first_image[match(rownames(first_image), ultra_tree$tip.label),]
+
+second_image <- data.frame(sapply(1:ncol(test_obj), function(x) make_tree_image(basic_asv_table, test_obj, x, 2)))
+rownames(second_image) <- colnames(basic_asv_table)
+
+second_image_ordered <- second_image[match(rownames(second_image), ultra_tree$tip.label),]
+
+burning_tree_plot_s1 <- first_image_ordered %>%
+  mutate(ASV = rownames(first_image_ordered)) %>%
+  pivot_longer(!ASV, names_to="tree_cut", values_to="asv_group") %>%
+  ggplot(aes(x=factor(tree_cut, level=c(colnames(first_image_ordered))), y=factor(ASV, level=c(basic_tree$tip.label)), fill=asv_group)) +
+  geom_tile() +
+  scale_fill_gradient(high="gold", low="purple") +
+  theme(axis.text.x=element_blank(),
+        axis.line.x = element_blank()) +
+  xlab(label=NULL)
+
+
+burning_tree_plot_s2 <- second_image_ordered %>%
+  mutate(ASV = rownames(second_image_ordered)) %>%
+  pivot_longer(!ASV, names_to="tree_cut", values_to="asv_group") %>%
+  ggplot(aes(x=factor(tree_cut, level=c(colnames(second_image_ordered))), y=factor(ASV, level=c(basic_tree$tip.label)), fill=asv_group)) +
+  geom_tile() +
+  scale_fill_gradient(high="gold", low="purple") +
+  theme(axis.text.x=element_blank(),
+        axis.line.x = element_blank()) +
+  xlab(label=NULL)
+
+comb_plot <- ggarrange(burning_tree_plot_s1, burning_tree_plot_s2)
+
+"some shti"
+
+```
+
+
