@@ -19,6 +19,7 @@ library(ggpubr)
 library(phyloseq)
 library(ggtree)
 library(curatedMetagenomicData)
+library(DT)
 ## read in your tree
 basic_tree <- read.tree("C:/Users/hammera/Documents/R_projects/Microbiopics/data/asv_prunedguides_rooted.nwk")
 
@@ -133,8 +134,16 @@ comb_plot <- ggarrange(burning_tree_plot_s1, burning_tree_plot_s2)
 ```
 
 ```{r real_data, include=FALSE}
+sample_metadata <- curatedMetagenomicData::sampleMetadata
+some_object <- curatedMetagenomicData("AsnicarF_20.+.relative_abundance", dryrun = FALSE, counts = TRUE, rownames = "short")
 
+tiny_obj <- some_object$`2021-03-31.AsnicarF_2021.relative_abundance`
 
+row_tree <- assays(tiny_obj)
+
+View(row_tree$relative_abundance)
+
+full_tree <- rowTree(tiny_obj)
 
 ```
 
