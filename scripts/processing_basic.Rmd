@@ -16,12 +16,14 @@ library(tidyverse)
 library(ape)
 library(phytools)
 library(ggpubr)
-
+library(phyloseq)
+library(ggtree)
+library(curatedMetagenomicData)
 ## read in your tree
-basic_tree <- read.tree("C:/Users/hammera/Documents/R_projects/Microbiopics/asv_prunedguides_rooted.nwk")
+basic_tree <- read.tree("C:/Users/hammera/Documents/R_projects/Microbiopics/data/asv_prunedguides_rooted.nwk")
 
 # count data table for the asvs in the tree
-fresh_asv_table <- read.table("C:/Users/hammera/Documents/R_projects/Microbiopics/asv_table_new.tab", row.names=1, header=TRUE)
+fresh_asv_table <- read.table("C:/Users/hammera/Documents/R_projects/Microbiopics/data/asv_table_new.tab", row.names=1, header=TRUE)
 
 basic_asv_table <- fresh_asv_table/rowSums(fresh_asv_table)
 ```
@@ -129,5 +131,12 @@ burning_tree_plot_s2 <- second_image_ordered %>%
 comb_plot <- ggarrange(burning_tree_plot_s1, burning_tree_plot_s2)
 
 ```
+
+```{r real_data, include=FALSE}
+
+
+
+```
+
 
 
