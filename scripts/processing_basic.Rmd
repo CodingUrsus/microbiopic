@@ -145,6 +145,7 @@ View(row_tree$relative_abundance)
 
 full_tree <- rowTree(tiny_obj)
 
+full_tree$tip.label
 ```
 
 
