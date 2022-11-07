@@ -137,7 +137,18 @@ comb_plot <- ggarrange(burning_tree_plot_s1, burning_tree_plot_s2)
 sample_metadata <- curatedMetagenomicData::sampleMetadata
 some_object <- curatedMetagenomicData("AsnicarF_20.+.relative_abundance", dryrun = FALSE, counts = TRUE, rownames = "short")
 
+yu_gene_families <- curatedMetagenomicData("YuJ_2015.gene_families", dryrun=FALSE)
+
+yu_gene_family_df <- yu_gene_families$`2021-03-31.YuJ_2015.gene_families`
+
+curatedMetagenomicData("YuJ_2015")
+
 tiny_obj <- some_object$`2021-03-31.AsnicarF_2021.relative_abundance`
+
+
+
+
+metagenomic_data <- some_object
 
 row_tree <- assays(tiny_obj)
 
