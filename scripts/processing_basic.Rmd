@@ -211,10 +211,12 @@ gene_family_data <- sampleMetadata %>%
   filter(age >= 18) %>%
     filter(body_site == "stool") %>%
     select(where(~ !all(is.na(.x)))) %>%
-  filter(study_name=="HanniganGD_2017") %>%
-    returnSamples("gene_families", rownames = "short")
+  filter(study_name=="HanniganGD_2017")
+#    returnSamples("gene_families", rownames = "short")
 
-saveRDS(big_clean_phyloseq, "C:/Users/hammera/Documents/R_projects/Microbiopics/data/adults_with_known_data_big_phyloseq.rds")
+
+# the line below reads in data where curatedMetagenomicData was collected for all included adults that have some identifying metadata available
+adults_rel_abund <- readRDS("C:/Users/hammera/Documents/R_projects/Microbiopics/data/adults_with_known_data_big_phyloseq.rds")
 
 sample_gene_families_Hannigan2017 <- readRDS("C:/Users/hammera/Documents/R_projects/Microbiopics/data/sample_gene_families_Hannigan2017.rds")
 
