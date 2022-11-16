@@ -20,6 +20,7 @@ library(phyloseq)
 library(ggtree)
 library(curatedMetagenomicData)
 library(DT)
+library(mia)
 ## read in your tree
 basic_tree <- read.tree("C:/Users/hammera/Documents/R_projects/Microbiopics/data/asv_prunedguides_rooted.nwk")
 
@@ -144,22 +145,70 @@ yu_gene_family_df <- yu_gene_families$`2021-03-31.YuJ_2015.gene_families`
 curatedMetagenomicData("YuJ_2015")
 
 tiny_obj <- some_object$`2021-03-31.AsnicarF_2021.relative_abundance`
-
-
-
-
 metagenomic_data <- some_object
 
 row_tree <- assays(tiny_obj)
 
-View(row_tree$relative_abundance)
+asv_count_table <- (row_tree$relative_abundance)
+
+microbe_names <- gsub(" ", "_", rownames(asv_count_table))
+micro_names <- gsub("\\.", "", microbe_names)
+
+
 
 full_tree <- rowTree(tiny_obj)
 
-full_tree$tip.label
+some_names <- full_tree$tip.label
+
+modified_names <- data.frame(t(data.frame(str_split(some_names, "s__", n=2))))
+colnames(modified_names) <- c("more_tax", "species") 
+rownames(modified_names) <- NULL
+
+tree_names <- modified_names %>%
+  mutate(fixed_names = gsub("\\:", "_", species))
+
+micro_names[!(micro_names %in% modified_names$species)]
+
+practice_names <- micro_names[grep("Lachnoclostridium", micro_names)]
+
+modified_names$species[grep("Duncaniella", modified_names$species)]
+
+count_table_names <- data.frame(microbe_names = micro_names) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, "\\:", "_")) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, "-", "_")) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, "\\[", "")) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, "\\]", ""))
+
+count_table_names$microbe_names[!(count_table_names$microbe_names %in% tree_names$fixed_names)]
+
+
+asv_count_table[rownames(asv_count_table)%in%tree_names$fixed_names]
+
+
 
 # some add
 ```
 
+```{r}
+tdf <- sampleMetadata %>%
+  filter(age >= 18) %>%
+    filter(body_site == "stool") %>%
+    select(where(~ !all(is.na(.x)))) %>%
+    returnSamples("relative_abundance", rownames = "short")
+    
+grouped_conditions <- tdf %>%
+  group_by(study_condition) %>%
+  summarise(sample_total = n())
+
+gene_family_data <- sampleMetadata %>%
+  filter(age >= 18) %>%
+    filter(body_site == "stool") %>%
+    select(where(~ !all(is.na(.x)))) %>%
+    returnSamples("gene_families", rownames = "short")
+
+saveRDS(big_clean_phyloseq, "C:/Users/hammera/Documents/R_projects/Microbiopics/data/no_alcohol_big_phyloseq.rds")
+
+big_clean_phyloseq <- makePhyloseqFromTreeSummarizedExperiment(tdf, abund_values = "relative_abundance")
+```
 
 
