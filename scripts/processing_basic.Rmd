@@ -190,13 +190,20 @@ asv_count_table[rownames(asv_count_table)%in%tree_names$fixed_names]
 ```
 
 ```{r}
-tdf <- sampleMetadata %>%
+curated_adult_fecal_samples <- sampleMetadata %>%
+  filter(age >= 18) %>%
+    filter(body_site == "stool") %>%
+    select(where(~ !all(is.na(.x))))
+#    returnSamples("relative_abundance", rownames = "short")
+    
+study_samples <- sampleMetadata %>%
   filter(age >= 18) %>%
     filter(body_site == "stool") %>%
     select(where(~ !all(is.na(.x)))) %>%
-    returnSamples("relative_abundance", rownames = "short")
+  group_by(study_name) %>%
+  summarize(samples_in_study = n())
     
-grouped_conditions <- tdf %>%
+grouped_conditions <- curated_adult_fecal_samples %>%
   group_by(study_condition) %>%
   summarise(sample_total = n())
 
@@ -204,11 +211,14 @@ gene_family_data <- sampleMetadata %>%
   filter(age >= 18) %>%
     filter(body_site == "stool") %>%
     select(where(~ !all(is.na(.x)))) %>%
+  filter(study_name=="HanniganGD_2017") %>%
     returnSamples("gene_families", rownames = "short")
 
-saveRDS(big_clean_phyloseq, "C:/Users/hammera/Documents/R_projects/Microbiopics/data/no_alcohol_big_phyloseq.rds")
+saveRDS(big_clean_phyloseq, "C:/Users/hammera/Documents/R_projects/Microbiopics/data/adults_with_known_data_big_phyloseq.rds")
 
-big_clean_phyloseq <- makePhyloseqFromTreeSummarizedExperiment(tdf, abund_values = "relative_abundance")
+sample_gene_families_Hannigan2017 <- readRDS("C:/Users/hammera/Documents/R_projects/Microbiopics/data/sample_gene_families_Hannigan2017.rds")
+
+#big_clean_phyloseq <- makePhyloseqFromTreeSummarizedExperiment(tdf, abund_values = "relative_abundance")
 ```
 
 
