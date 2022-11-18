@@ -13,16 +13,13 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r libs_and_data, include=FALSE}
 library(tidyverse)
-library(ape)
-library(phytools)
 library(ggpubr)
 library(phyloseq)
-library(ggtree)
 library(curatedMetagenomicData)
 library(DT)
 library(mia)
 ## read in your tree
-basic_tree <- read.tree("C:/Users/hammera/Documents/R_projects/Microbiopics/data/asv_prunedguides_rooted.nwk")
+basic_tree <- ape::read.tree("C:/Users/hammera/Documents/R_projects/Microbiopics/data/asv_prunedguides_rooted.nwk")
 
 # count data table for the asvs in the tree
 fresh_asv_table <- read.table("C:/Users/hammera/Documents/R_projects/Microbiopics/data/asv_table_new.tab", row.names=1, header=TRUE)
@@ -137,43 +134,28 @@ comb_plot <- ggarrange(burning_tree_plot_s1, burning_tree_plot_s2)
 ```{r real_data, include=FALSE}
 sample_metadata <- curatedMetagenomicData::sampleMetadata
 some_object <- curatedMetagenomicData("AsnicarF_20.+.relative_abundance", dryrun = FALSE, counts = TRUE, rownames = "short")
-
-yu_gene_families <- curatedMetagenomicData("YuJ_2015.gene_families", dryrun=FALSE)
-
-yu_gene_family_df <- yu_gene_families$`2021-03-31.YuJ_2015.gene_families`
-
-curatedMetagenomicData("YuJ_2015")
-
 tiny_obj <- some_object$`2021-03-31.AsnicarF_2021.relative_abundance`
 metagenomic_data <- some_object
-
 row_tree <- assays(tiny_obj)
-
 asv_count_table <- (row_tree$relative_abundance)
-
 microbe_names <- gsub(" ", "_", rownames(asv_count_table))
 micro_names <- gsub("\\.", "", microbe_names)
 
 
 
 full_tree <- rowTree(tiny_obj)
+full_tree_names <- full_tree$tip.label
 
-some_names <- full_tree$tip.label
+modified_tree_names <- data.frame(t(data.frame(str_split(full_tree_names, "s__", n=2))))
+colnames(modified_tree_names) <- c("more_tax", "species") 
+rownames(modified_tree_names) <- NULL
 
-modified_names <- data.frame(t(data.frame(str_split(some_names, "s__", n=2))))
-colnames(modified_names) <- c("more_tax", "species") 
-rownames(modified_names) <- NULL
-
-tree_names <- modified_names %>%
+tree_names <- modified_tree_names %>%
   mutate(fixed_names = gsub("\\:", "_", species))
 
-micro_names[!(micro_names %in% modified_names$species)]
-
-practice_names <- micro_names[grep("Lachnoclostridium", micro_names)]
-
-modified_names$species[grep("Duncaniella", modified_names$species)]
-
 count_table_names <- data.frame(microbe_names = micro_names) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, "\\.", "_")) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, " ", "_")) %>%
   mutate(microbe_names = str_replace_all(microbe_names, "\\:", "_")) %>%
   mutate(microbe_names = str_replace_all(microbe_names, "-", "_")) %>%
   mutate(microbe_names = str_replace_all(microbe_names, "\\[", "")) %>%
@@ -218,11 +200,77 @@ gene_family_data <- sampleMetadata %>%
 # the line below reads in data where curatedMetagenomicData was collected for all included adults that have some identifying metadata available
 adults_rel_abund <- readRDS("C:/Users/hammera/Documents/R_projects/Microbiopics/data/adults_with_known_data_big_phyloseq.rds")
 
-sample_gene_families_Hannigan2017 <- readRDS("C:/Users/hammera/Documents/R_projects/Microbiopics/data/sample_gene_families_Hannigan2017.rds")
-gene_family_counts <- data.frame(otu_table(sample_gene_families_Hannigan2017))
-gene_family_names <- rownames(gene_family_counts)
+cmd_count_table <- data.frame(otu_table(adults_rel_abund))
+count_sums <- rowSums(cmd_count_table)
 
-#big_clean_phyloseq <- makePhyloseqFromTreeSummarizedExperiment(tdf, abund_values = "relative_abundance")
+#sample_gene_families_Hannigan2017 <- #readRDS("C:/Users/hammera/Documents/R_projects/Microbiopics/data/sample_gene_families_Hannigan2017.rds")
+#gene_family_counts <- data.frame(otu_table(sample_gene_families_Hannigan2017))
+#gene_family_names <- rownames(gene_family_counts)
+#gene_family_sums <- rowSums(gene_family_counts)
 ```
 
+```{r checking_phylo_tree_edges}
+count_tab_names <- data.frame(microbe_names = rownames(cmd_count_table)) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, " sp.", " sp")) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, "\\.", "_")) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, " ", "_")) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, "\\:", "_")) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, "-", "_")) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, "\\[", "")) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, "\\]", "")) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, "__", "_")) %>%
+  mutate(original_names = rownames(cmd_count_table))
 
+metaphlan_tree <- ape::read.tree("C:/Users/hammera/Documents/R_projects/Microbiopics/data/mpa_v30_CHOCOPhlAn_201901_species_tree.nwk")
+
+all_metaphlan_tree_names <- metaphlan_tree$tip.label
+
+modified_metaphlan_tree_names <- data.frame(t(data.frame(str_split(all_metaphlan_tree_names, "s__", n=2))))
+colnames(modified_metaphlan_tree_names) <- c("more_tax", "species") 
+rownames(modified_metaphlan_tree_names) <- NULL
+
+metaphlan_tree_names <- modified_metaphlan_tree_names %>%
+  mutate(microbe_names = gsub("\\:", "_", species)) %>%
+  mutate(tree_names = all_metaphlan_tree_names)
+
+no_match_names <- count_tab_names[!(count_tab_names$microbe_names %in% metaphlan_tree_names$microbe_names),]
+matched_names <- count_tab_names[(count_tab_names$microbe_names %in% metaphlan_tree_names$microbe_names),] %>%
+  left_join(metaphlan_tree_names)
+
+
+
+no_match_count_table <- cmd_count_table %>%
+  filter(rownames(cmd_count_table) %in% no_match_names$original_names)
+
+max(rowSums(no_match_count_table))
+hist(rowSums(no_match_count_table), breaks=40)
+
+
+split_names <- data.frame(strsplit(metaphlan_tree$tip.label, "s__"))
+all_metaphlan_taxa <- data.frame(microbes = as.vector(split_names[2,])) %>%
+  pivot_longer(everything(), names_to=NULL, values_to="microbes")
+
+(no_match_names) %>% head(30)
+
+metaphlan_tree_names$microbe_names[grepl("vulgatus", metaphlan_tree_names$microbe_names, ignore.case=TRUE)]
+
+count_tab_names$microbe_names[(grepl("vulgatus", count_tab_names$microbe_names))]
+
+```
+
+Objectives for tonight:
+1. look at the distn of abundances for the taxa in question
+2. filter the table if it has the taxa that have good names
+3. Look at several images to get an idea of the elbow point
+4. Build a couple of sample images
+5. Scale it up for all samples
+
+What are we bringing to the table that is novel?
+1. Can we deal with zero inflation issues that result from taking a bunch of non-informative information?
+  a. there is very likely an elbow point at which new information is not being assimilated
+2. Can we build a unifying framework so that we get robust classification across disease states?
+3. How does this model compare with other ML models that are trained on these data?
+4. One other question that arises for me, has to do with the multi-omic embedding. 
+5. Could we cluster metagenomic sequences in UniRef90 into protein families, then perform a convolutional operation on those for classification purposes?
+  a. One idea, would be to first perform a 16s feature selection approach, then use the subtending metagenomic features for     classification. Like what functions from disease-linked bugs are important for classification across diseases?
+  b. a sub question that arises for me, is if there are consistent classes of functions that display robust association with     diseases, which are from specific microbes that are linked to those diseases. For instance, if we find that there is        specific mannose-metabolism genes from multiple bugs that are strongly linked to diabetes, is a quorum of functional        association across microbes indicative of modules of interest?
