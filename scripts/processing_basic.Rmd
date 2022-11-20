@@ -274,3 +274,7 @@ What are we bringing to the table that is novel?
 5. Could we cluster metagenomic sequences in UniRef90 into protein families, then perform a convolutional operation on those for classification purposes?
   a. One idea, would be to first perform a 16s feature selection approach, then use the subtending metagenomic features for     classification. Like what functions from disease-linked bugs are important for classification across diseases?
   b. a sub question that arises for me, is if there are consistent classes of functions that display robust association with     diseases, which are from specific microbes that are linked to those diseases. For instance, if we find that there is        specific mannose-metabolism genes from multiple bugs that are strongly linked to diabetes, is a quorum of functional        association across microbes indicative of modules of interest?
+6. One idea that I'm nearly certain would be novel, would be comparing the predictive import of various functional modules using CNNs or GNNs, where the data is structured according to the phylogenetic tree
+  a. This would allow us to be more specific about the specific microbial functions that are associated with some disease outcome
+  b. Additionally, it could clarify "how" microbes are doing what they're doing
+  c. This same approach would have broad application across metagenome types
