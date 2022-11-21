@@ -242,7 +242,7 @@ matched_names <- count_tab_names[(count_tab_names$microbe_names %in% metaphlan_t
 no_match_count_table <- cmd_count_table %>%
   filter(rownames(cmd_count_table) %in% no_match_names$original_names)
 
-max(rowSums(no_match_count_table))
+microbes_not_matching <- sort(rowSums(no_match_count_table))
 hist(rowSums(no_match_count_table), breaks=40)
 
 
@@ -252,11 +252,34 @@ all_metaphlan_taxa <- data.frame(microbes = as.vector(split_names[2,])) %>%
 
 (no_match_names) %>% head(30)
 
-metaphlan_tree_names$microbe_names[grepl("vulgatus", metaphlan_tree_names$microbe_names, ignore.case=TRUE)]
+metaphlan_tree_names$microbe_names[grepl("massiliensis", metaphlan_tree_names$microbe_names, ignore.case=TRUE)]
 
-count_tab_names$microbe_names[(grepl("vulgatus", count_tab_names$microbe_names))]
+count_tab_names$microbe_names[(grepl("massiliensis", count_tab_names$microbe_names))]
+```
+```{r taking_microbiopics, include=FALSE}
+# this is a df of the original count table for these data
+cmd_count_table
+
+# this is the og tree
+metaphlan_tree
+mtree <- metaphlan_tree
+
+# need to change the name for a couple of bugs in the metaphlan tree because the name doesn't match up to the count table
+metaphlan_tree_names$species[metaphlan_tree_names$species=="Bacteroides_vulgatus"] <- "Phocaeicola_vulgatus"
+metaphlan_tree_names$species[metaphlan_tree_names$species=="Bacteroides_dorei"] <- "Phocaeicola_dorei"
+metaphlan_tree_names$species[metaphlan_tree_names$species=="Bacteroides_plebeius"] <- "Phocaeicola_plebeius"
+metaphlan_tree_names$species[metaphlan_tree_names$species=="Eubacterium_eligens"] <- "Lachnospira_eligens"
+metaphlan_tree_names$species[metaphlan_tree_names$species=="Eubacterium_hallii"] <- "Anaerobutyricum_hallii"
+
+# rename the tree labels so that they match those that are in the count table
+# make a tree that has the names of the bugs that are in the count table as well
+
+
+
 
 ```
+
+
 
 Objectives for tonight:
 1. look at the distn of abundances for the taxa in question
@@ -278,3 +301,15 @@ What are we bringing to the table that is novel?
   a. This would allow us to be more specific about the specific microbial functions that are associated with some disease outcome
   b. Additionally, it could clarify "how" microbes are doing what they're doing
   c. This same approach would have broad application across metagenome types
+
+
+
+  
+
+
+
+
+
+
+
+
