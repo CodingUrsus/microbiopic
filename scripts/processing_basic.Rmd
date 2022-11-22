@@ -247,6 +247,9 @@ metaphlan_tree_names$microbe_names[metaphlan_tree_names$microbe_names=="Bacteroi
 metaphlan_tree_names$microbe_names[metaphlan_tree_names$microbe_names=="Eubacterium_eligens"] <- "Lachnospira_eligens"
 metaphlan_tree_names$microbe_names[metaphlan_tree_names$microbe_names=="Eubacterium_hallii"] <- "Anaerobutyricum_hallii"
 
+# MAJOR NOTE: Not all of the colsums will be 100 (percent) because there are a small number of taxa, most of which are extremely unabundant, which do not have a mapping in the phylogenetic tree
+# this issue has been noted on the biobakery github page for metaphlan4 and I think it's being worked out
+
 # identify which names from the metphlan tree match to the count table and which ones don't
 no_match_names <- count_tab_names[!(count_tab_names$microbe_names %in% metaphlan_tree_names$microbe_names),]
 matched_names <- count_tab_names[(count_tab_names$microbe_names %in% metaphlan_tree_names$microbe_names),] %>%
@@ -283,13 +286,18 @@ mtree <- metaphlan_tree
 # rename the tree labels so that they match those that are in the count table
 # Finally, rename all the stuff
 
-selected_tree <- ape::keep.tip(mtree, matched_names$tree_names)
+matched_tree <- ape::keep.tip(mtree, matched_names$tree_names)
 
+matched_count_table <- cmd_count_table %>%
+  filter(rownames(cmd_count_table) %in% matched_names$original_names)
 
+matched_colsums <- colSums(matched_count_table)
+
+tree_matched_df <- data.frame(tree_names = matched_tree$tip.label) %>%
+  left_join(matched_names)
+matched_tree$tip.label <- tree_matched_df$microbe_names
 
 ```
-
-
 
 Objectives for tonight:
 1. look at the distn of abundances for the taxa in question
