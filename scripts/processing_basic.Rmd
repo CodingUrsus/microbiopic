@@ -18,6 +18,7 @@ library(phyloseq)
 library(curatedMetagenomicData)
 library(DT)
 library(mia)
+library(ape)
 ## read in your tree
 basic_tree <- ape::read.tree("C:/Users/hammera/Documents/R_projects/Microbiopics/data/asv_prunedguides_rooted.nwk")
 
@@ -133,7 +134,7 @@ comb_plot <- ggarrange(burning_tree_plot_s1, burning_tree_plot_s2)
 
 ```{r real_data, include=FALSE}
 sample_metadata <- curatedMetagenomicData::sampleMetadata
-some_object <- curatedMetagenomicData("AsnicarF_20.+.relative_abundance", dryrun = FALSE, counts = TRUE, rownames = "short")
+some_object <- curatedMetagenomicData("AsnicarF_20.+.relative_abundance", dryrun = TRUE, counts = TRUE, rownames = "short")
 tiny_obj <- some_object$`2021-03-31.AsnicarF_2021.relative_abundance`
 metagenomic_data <- some_object
 row_tree <- assays(tiny_obj)
@@ -278,10 +279,11 @@ cmd_count_table
 metaphlan_tree
 mtree <- metaphlan_tree
 
-
+# first, select the tree names that are matched between the count table and the tree, then
 # rename the tree labels so that they match those that are in the count table
-# make a tree that has the names of the bugs that are in the count table as well
+# Finally, rename all the stuff
 
+selected_tree <- ape::keep.tip(mtree, matched_names$tree_names)
 
 
 
@@ -303,8 +305,8 @@ What are we bringing to the table that is novel?
 3. How does this model compare with other ML models that are trained on these data?
 4. One other question that arises for me, has to do with the multi-omic embedding. 
 5. Could we cluster metagenomic sequences in UniRef90 into protein families, then perform a convolutional operation on those for classification purposes?
-  a. One idea, would be to first perform a 16s feature selection approach, then use the subtending metagenomic features for     classification. Like what functions from disease-linked bugs are important for classification across diseases?
-  b. a sub question that arises for me, is if there are consistent classes of functions that display robust association with     diseases, which are from specific microbes that are linked to those diseases. For instance, if we find that there is        specific mannose-metabolism genes from multiple bugs that are strongly linked to diabetes, is a quorum of functional        association across microbes indicative of modules of interest?
+  a. One idea, would be to first perform a 16s feature selection approach, then use the subtending metagenomic features for classification. Like what functions from disease-linked bugs are important for classification across diseases?
+  b. a sub question that arises for me, is if there are consistent classes of functions that display robust association with diseases, which are from specific microbes that are linked to those diseases. For instance, if we find that there is specific mannose-metabolism genes from multiple bugs that are strongly linked to diabetes, is a quorum of functional association across microbes indicative of modules of interest?
 6. One idea that I'm nearly certain would be novel, would be comparing the predictive import of various functional modules using CNNs or GNNs, where the data is structured according to the phylogenetic tree
   a. This would allow us to be more specific about the specific microbial functions that are associated with some disease outcome
   b. Additionally, it could clarify "how" microbes are doing what they're doing
