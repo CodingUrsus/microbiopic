@@ -207,6 +207,12 @@ count_sums <- rowSums(cmd_count_table)
 #gene_family_counts <- data.frame(otu_table(sample_gene_families_Hannigan2017))
 #gene_family_names <- rownames(gene_family_counts)
 #gene_family_sums <- rowSums(gene_family_counts)
+
+sample_md <- (data.frame(sample_data(adults_rel_abund)))
+
+grouped_study_condition <- sample_md %>%
+  group_by(study_condition) %>%
+  summarize(study_condition_total = n())
 ```
 
 ```{r checking_phylo_tree_edges}
@@ -233,12 +239,20 @@ metaphlan_tree_names <- modified_metaphlan_tree_names %>%
   mutate(microbe_names = gsub("\\:", "_", species)) %>%
   mutate(tree_names = all_metaphlan_tree_names)
 
+# need to change the name for a couple of bugs in the metaphlan tree because the name doesn't match up to the count table and the taxonomic identifier has changed
+metaphlan_tree_names$microbe_names[metaphlan_tree_names$microbe_names=="Bacteroides_vulgatus"] <- "Phocaeicola_vulgatus"
+metaphlan_tree_names$microbe_names[metaphlan_tree_names$microbe_names=="Bacteroides_dorei"] <- "Phocaeicola_dorei"
+metaphlan_tree_names$microbe_names[metaphlan_tree_names$microbe_names=="Bacteroides_plebeius"] <- "Phocaeicola_plebeius"
+metaphlan_tree_names$microbe_names[metaphlan_tree_names$microbe_names=="Eubacterium_eligens"] <- "Lachnospira_eligens"
+metaphlan_tree_names$microbe_names[metaphlan_tree_names$microbe_names=="Eubacterium_hallii"] <- "Anaerobutyricum_hallii"
+
+# identify which names from the metphlan tree match to the count table and which ones don't
 no_match_names <- count_tab_names[!(count_tab_names$microbe_names %in% metaphlan_tree_names$microbe_names),]
 matched_names <- count_tab_names[(count_tab_names$microbe_names %in% metaphlan_tree_names$microbe_names),] %>%
   left_join(metaphlan_tree_names)
 
 
-
+# filter to get just the rownames that are not in the table
 no_match_count_table <- cmd_count_table %>%
   filter(rownames(cmd_count_table) %in% no_match_names$original_names)
 
@@ -264,12 +278,6 @@ cmd_count_table
 metaphlan_tree
 mtree <- metaphlan_tree
 
-# need to change the name for a couple of bugs in the metaphlan tree because the name doesn't match up to the count table
-metaphlan_tree_names$species[metaphlan_tree_names$species=="Bacteroides_vulgatus"] <- "Phocaeicola_vulgatus"
-metaphlan_tree_names$species[metaphlan_tree_names$species=="Bacteroides_dorei"] <- "Phocaeicola_dorei"
-metaphlan_tree_names$species[metaphlan_tree_names$species=="Bacteroides_plebeius"] <- "Phocaeicola_plebeius"
-metaphlan_tree_names$species[metaphlan_tree_names$species=="Eubacterium_eligens"] <- "Lachnospira_eligens"
-metaphlan_tree_names$species[metaphlan_tree_names$species=="Eubacterium_hallii"] <- "Anaerobutyricum_hallii"
 
 # rename the tree labels so that they match those that are in the count table
 # make a tree that has the names of the bugs that are in the count table as well
