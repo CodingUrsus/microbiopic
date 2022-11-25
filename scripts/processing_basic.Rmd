@@ -44,7 +44,7 @@ make_ultrametric_tree <- function(new_tree){
 # use the output to determine the point at which you think there isn't a lot of information being given. You may consider plotting this then just choosing an elbow point
 determine_tree_chopping_point <- function(your_hclust){
   max_branch_len <- max(your_hclust$height)
-  tree_groups <- sapply(1:1000, function(x) length(unique(cutree(your_hclust, h=x*0.001*max_branch_len))))
+  tree_groups <- sapply(1:1000, function(x) length(unique(cutree(your_hclust, h=x*0.0001*max_branch_len))))
   return(tree_groups)
 }
 
@@ -288,16 +288,82 @@ mtree <- metaphlan_tree
 
 matched_tree <- ape::keep.tip(mtree, matched_names$tree_names)
 
-matched_count_table <- cmd_count_table %>%
+matched_subsetted_count_table <- cmd_count_table %>%
   filter(rownames(cmd_count_table) %in% matched_names$original_names)
 
 matched_colsums <- colSums(matched_count_table)
 
+# organize the names so that they are in the same order as the tree tips, then rename the tree tips
 tree_matched_df <- data.frame(tree_names = matched_tree$tip.label) %>%
   left_join(matched_names)
+
 matched_tree$tip.label <- tree_matched_df$microbe_names
 
+# this just reorganizes the names of the count table so that they match the data.frame
+matched_count_df <- data.frame(original_names = rownames(matched_subsetted_count_table)) %>%
+  left_join(matched_names)
+
+matched_count_table <- matched_subsetted_count_table
+rownames(matched_count_table) <- matched_count_df$microbe_names # uses same names for tree and count table
 ```
+
+```{r format_and_cut_matched_tree}
+# need to cut up the tree, visualize the number of groups to identify a subsetting point
+ultra_tree <- make_ultrametric_tree(matched_tree)
+
+tclust <- as.hclust(ultra_tree)
+
+tree_group_points <- determine_tree_chopping_point(tclust)
+
+tree_chopping_df <- data.frame(number_of_groups = tree_group_points, operator=seq(1,1000)*0.0001)
+
+tree_chopping_df %>%
+  ggplot(aes(x=operator, y=number_of_groups)) +
+  #geom_smooth(se=F)+
+  geom_line() +
+  theme_linedraw() +
+  xlab("Position on Tree") +
+  ylab("Number of Groups at Cut")
+
+test_obj <- data.frame(sapply(1:100, function(x) cutree(tclust, h=x*(0.5/100))))
+
+first_image <- data.frame(sapply(1:ncol(test_obj), function(x) make_tree_image(basic_asv_table, test_obj, x, 1)))
+rownames(first_image) <- colnames(basic_asv_table)
+
+first_image_ordered <- first_image[match(rownames(first_image), ultra_tree$tip.label),]
+
+second_image <- data.frame(sapply(1:ncol(test_obj), function(x) make_tree_image(basic_asv_table, test_obj, x, 2)))
+rownames(second_image) <- colnames(basic_asv_table)
+
+second_image_ordered <- second_image[match(rownames(second_image), ultra_tree$tip.label),]
+
+burning_tree_plot_s1 <- first_image_ordered %>%
+  mutate(ASV = rownames(first_image_ordered)) %>%
+  pivot_longer(!ASV, names_to="tree_cut", values_to="asv_group") %>%
+  ggplot(aes(x=factor(tree_cut, level=c(colnames(first_image_ordered))), y=factor(ASV, level=c(basic_tree$tip.label)), fill=asv_group)) +
+  geom_tile() +
+  scale_fill_gradient(high="gold", low="purple") +
+  theme(axis.text.x=element_blank(),
+        axis.line.x = element_blank()) +
+  xlab(label=NULL)
+
+
+burning_tree_plot_s2 <- second_image_ordered %>%
+  mutate(ASV = rownames(second_image_ordered)) %>%
+  pivot_longer(!ASV, names_to="tree_cut", values_to="asv_group") %>%
+  ggplot(aes(x=factor(tree_cut, level=c(colnames(second_image_ordered))), y=factor(ASV, level=c(basic_tree$tip.label)), fill=asv_group)) +
+  geom_tile() +
+  scale_fill_gradient(high="gold", low="purple") +
+  theme(axis.text.x=element_blank(),
+        axis.line.x = element_blank()) +
+  xlab(label=NULL)
+
+comb_plot <- ggarrange(burning_tree_plot_s1, burning_tree_plot_s2)
+
+
+```
+
+
 
 Objectives for tonight:
 1. look at the distn of abundances for the taxa in question
