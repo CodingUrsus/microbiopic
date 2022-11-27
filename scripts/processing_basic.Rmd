@@ -385,6 +385,7 @@ What are we bringing to the table that is novel?
   a. This would allow us to be more specific about the specific microbial functions that are associated with some disease outcome
   b. Additionally, it could clarify "how" microbes are doing what they're doing
   c. This same approach would have broad application across metagenome types
+  d. do we have information that ties certain metagenomic modules to taxonomic mappings?
 
 
 
