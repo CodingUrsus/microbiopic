@@ -13,17 +13,18 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r libs_and_data, include=FALSE}
 library(tidyverse)
-library(ape)
-library(phytools)
 library(ggpubr)
 library(phyloseq)
-library(ggtree)
 library(curatedMetagenomicData)
 library(DT)
 library(mia)
+<<<<<<< HEAD
 library(phangorn)
+=======
+library(ape)
+>>>>>>> 4621bfd50ee71e225b1dc84da8bbb07cea2872ab
 ## read in your tree
-basic_tree <- read.tree("C:/Users/hammera/Documents/R_projects/Microbiopics/data/asv_prunedguides_rooted.nwk")
+basic_tree <- ape::read.tree("C:/Users/hammera/Documents/R_projects/Microbiopics/data/asv_prunedguides_rooted.nwk")
 
 # count data table for the asvs in the tree
 fresh_asv_table <- read.table("C:/Users/hammera/Documents/R_projects/Microbiopics/data/asv_table_new.tab", row.names=1, header=TRUE)
@@ -47,7 +48,7 @@ make_ultrametric_tree <- function(new_tree){
 # use the output to determine the point at which you think there isn't a lot of information being given. You may consider plotting this then just choosing an elbow point
 determine_tree_chopping_point <- function(your_hclust){
   max_branch_len <- max(your_hclust$height)
-  tree_groups <- sapply(1:1000, function(x) length(unique(cutree(your_hclust, h=x*0.001*max_branch_len))))
+  tree_groups <- sapply(1:1000, function(x) length(unique(cutree(your_hclust, h=x*0.0001*max_branch_len))))
   return(tree_groups)
 }
 
@@ -137,44 +138,29 @@ comb_plot <- ggarrange(burning_tree_plot_s1, burning_tree_plot_s2)
 
 ```{r real_data, include=FALSE}
 sample_metadata <- curatedMetagenomicData::sampleMetadata
-some_object <- curatedMetagenomicData("AsnicarF_20.+.relative_abundance", dryrun = FALSE, counts = TRUE, rownames = "short")
-
-yu_gene_families <- curatedMetagenomicData("YuJ_2015.gene_families", dryrun=FALSE)
-
-yu_gene_family_df <- yu_gene_families$`2021-03-31.YuJ_2015.gene_families`
-
-curatedMetagenomicData("YuJ_2015")
-
+some_object <- curatedMetagenomicData("AsnicarF_20.+.relative_abundance", dryrun = TRUE, counts = TRUE, rownames = "short")
 tiny_obj <- some_object$`2021-03-31.AsnicarF_2021.relative_abundance`
 metagenomic_data <- some_object
-
 row_tree <- assays(tiny_obj)
-
 asv_count_table <- (row_tree$relative_abundance)
-
 microbe_names <- gsub(" ", "_", rownames(asv_count_table))
 micro_names <- gsub("\\.", "", microbe_names)
 
 
 
 full_tree <- rowTree(tiny_obj)
+full_tree_names <- full_tree$tip.label
 
-some_names <- full_tree$tip.label
+modified_tree_names <- data.frame(t(data.frame(str_split(full_tree_names, "s__", n=2))))
+colnames(modified_tree_names) <- c("more_tax", "species") 
+rownames(modified_tree_names) <- NULL
 
-modified_names <- data.frame(t(data.frame(str_split(some_names, "s__", n=2))))
-colnames(modified_names) <- c("more_tax", "species") 
-rownames(modified_names) <- NULL
-
-tree_names <- modified_names %>%
+tree_names <- modified_tree_names %>%
   mutate(fixed_names = gsub("\\:", "_", species))
 
-micro_names[!(micro_names %in% modified_names$species)]
-
-practice_names <- micro_names[grep("Lachnoclostridium", micro_names)]
-
-modified_names$species[grep("Duncaniella", modified_names$species)]
-
 count_table_names <- data.frame(microbe_names = micro_names) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, "\\.", "_")) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, " ", "_")) %>%
   mutate(microbe_names = str_replace_all(microbe_names, "\\:", "_")) %>%
   mutate(microbe_names = str_replace_all(microbe_names, "-", "_")) %>%
   mutate(microbe_names = str_replace_all(microbe_names, "\\[", "")) %>%
@@ -191,13 +177,20 @@ asv_count_table[rownames(asv_count_table)%in%tree_names$fixed_names]
 ```
 
 ```{r}
-tdf <- sampleMetadata %>%
+curated_adult_fecal_samples <- sampleMetadata %>%
+  filter(age >= 18) %>%
+    filter(body_site == "stool") %>%
+    select(where(~ !all(is.na(.x))))
+#    returnSamples("relative_abundance", rownames = "short")
+    
+study_samples <- sampleMetadata %>%
   filter(age >= 18) %>%
     filter(body_site == "stool") %>%
     select(where(~ !all(is.na(.x)))) %>%
-    returnSamples("relative_abundance", rownames = "short")
+  group_by(study_name) %>%
+  summarize(samples_in_study = n())
     
-grouped_conditions <- tdf %>%
+grouped_conditions <- curated_adult_fecal_samples %>%
   group_by(study_condition) %>%
   summarise(sample_total = n())
 
@@ -205,11 +198,207 @@ gene_family_data <- sampleMetadata %>%
   filter(age >= 18) %>%
     filter(body_site == "stool") %>%
     select(where(~ !all(is.na(.x)))) %>%
-    returnSamples("gene_families", rownames = "short")
+  filter(study_name=="HanniganGD_2017")
+#    returnSamples("gene_families", rownames = "short")
 
-saveRDS(big_clean_phyloseq, "C:/Users/hammera/Documents/R_projects/Microbiopics/data/no_alcohol_big_phyloseq.rds")
 
-big_clean_phyloseq <- makePhyloseqFromTreeSummarizedExperiment(tdf, abund_values = "relative_abundance")
+# the line below reads in data where curatedMetagenomicData was collected for all included adults that have some identifying metadata available
+adults_rel_abund <- readRDS("C:/Users/hammera/Documents/R_projects/Microbiopics/data/adults_with_known_data_big_phyloseq.rds")
+
+cmd_count_table <- data.frame(otu_table(adults_rel_abund))
+count_sums <- rowSums(cmd_count_table)
+
+#sample_gene_families_Hannigan2017 <- #readRDS("C:/Users/hammera/Documents/R_projects/Microbiopics/data/sample_gene_families_Hannigan2017.rds")
+#gene_family_counts <- data.frame(otu_table(sample_gene_families_Hannigan2017))
+#gene_family_names <- rownames(gene_family_counts)
+#gene_family_sums <- rowSums(gene_family_counts)
+
+sample_md <- (data.frame(sample_data(adults_rel_abund)))
+
+grouped_study_condition <- sample_md %>%
+  group_by(study_condition) %>%
+  summarize(study_condition_total = n())
 ```
+
+```{r checking_phylo_tree_edges}
+count_tab_names <- data.frame(microbe_names = rownames(cmd_count_table)) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, " sp.", " sp")) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, "\\.", "_")) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, " ", "_")) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, "\\:", "_")) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, "-", "_")) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, "\\[", "")) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, "\\]", "")) %>%
+  mutate(microbe_names = str_replace_all(microbe_names, "__", "_")) %>%
+  mutate(original_names = rownames(cmd_count_table))
+
+metaphlan_tree <- ape::read.tree("C:/Users/hammera/Documents/R_projects/Microbiopics/data/mpa_v30_CHOCOPhlAn_201901_species_tree.nwk")
+
+all_metaphlan_tree_names <- metaphlan_tree$tip.label
+
+modified_metaphlan_tree_names <- data.frame(t(data.frame(str_split(all_metaphlan_tree_names, "s__", n=2))))
+colnames(modified_metaphlan_tree_names) <- c("more_tax", "species") 
+rownames(modified_metaphlan_tree_names) <- NULL
+
+metaphlan_tree_names <- modified_metaphlan_tree_names %>%
+  mutate(microbe_names = gsub("\\:", "_", species)) %>%
+  mutate(tree_names = all_metaphlan_tree_names)
+
+# need to change the name for a couple of bugs in the metaphlan tree because the name doesn't match up to the count table and the taxonomic identifier has changed
+metaphlan_tree_names$microbe_names[metaphlan_tree_names$microbe_names=="Bacteroides_vulgatus"] <- "Phocaeicola_vulgatus"
+metaphlan_tree_names$microbe_names[metaphlan_tree_names$microbe_names=="Bacteroides_dorei"] <- "Phocaeicola_dorei"
+metaphlan_tree_names$microbe_names[metaphlan_tree_names$microbe_names=="Bacteroides_plebeius"] <- "Phocaeicola_plebeius"
+metaphlan_tree_names$microbe_names[metaphlan_tree_names$microbe_names=="Eubacterium_eligens"] <- "Lachnospira_eligens"
+metaphlan_tree_names$microbe_names[metaphlan_tree_names$microbe_names=="Eubacterium_hallii"] <- "Anaerobutyricum_hallii"
+
+# MAJOR NOTE: Not all of the colsums will be 100 (percent) because there are a small number of taxa, most of which are extremely unabundant, which do not have a mapping in the phylogenetic tree
+# this issue has been noted on the biobakery github page for metaphlan4 and I think it's being worked out
+
+# identify which names from the metphlan tree match to the count table and which ones don't
+no_match_names <- count_tab_names[!(count_tab_names$microbe_names %in% metaphlan_tree_names$microbe_names),]
+matched_names <- count_tab_names[(count_tab_names$microbe_names %in% metaphlan_tree_names$microbe_names),] %>%
+  left_join(metaphlan_tree_names)
+
+
+# filter to get just the rownames that are not in the table
+no_match_count_table <- cmd_count_table %>%
+  filter(rownames(cmd_count_table) %in% no_match_names$original_names)
+
+microbes_not_matching <- sort(rowSums(no_match_count_table))
+hist(rowSums(no_match_count_table), breaks=40)
+
+
+split_names <- data.frame(strsplit(metaphlan_tree$tip.label, "s__"))
+all_metaphlan_taxa <- data.frame(microbes = as.vector(split_names[2,])) %>%
+  pivot_longer(everything(), names_to=NULL, values_to="microbes")
+
+(no_match_names) %>% head(30)
+
+metaphlan_tree_names$microbe_names[grepl("massiliensis", metaphlan_tree_names$microbe_names, ignore.case=TRUE)]
+
+count_tab_names$microbe_names[(grepl("massiliensis", count_tab_names$microbe_names))]
+```
+```{r taking_microbiopics, include=FALSE}
+# this is a df of the original count table for these data
+cmd_count_table
+
+# this is the og tree
+metaphlan_tree
+mtree <- metaphlan_tree
+
+# first, select the tree names that are matched between the count table and the tree, then
+# rename the tree labels so that they match those that are in the count table
+# Finally, rename all the stuff
+
+matched_tree <- ape::keep.tip(mtree, matched_names$tree_names)
+
+matched_subsetted_count_table <- cmd_count_table %>%
+  filter(rownames(cmd_count_table) %in% matched_names$original_names)
+
+matched_colsums <- colSums(matched_count_table)
+
+# organize the names so that they are in the same order as the tree tips, then rename the tree tips
+tree_matched_df <- data.frame(tree_names = matched_tree$tip.label) %>%
+  left_join(matched_names)
+
+matched_tree$tip.label <- tree_matched_df$microbe_names
+
+# this just reorganizes the names of the count table so that they match the data.frame
+matched_count_df <- data.frame(original_names = rownames(matched_subsetted_count_table)) %>%
+  left_join(matched_names)
+
+matched_count_table <- matched_subsetted_count_table
+rownames(matched_count_table) <- matched_count_df$microbe_names # uses same names for tree and count table
+```
+
+```{r format_and_cut_matched_tree}
+# need to cut up the tree, visualize the number of groups to identify a subsetting point
+ultra_tree <- make_ultrametric_tree(matched_tree)
+
+tclust <- as.hclust(ultra_tree)
+
+tree_group_points <- determine_tree_chopping_point(tclust)
+
+tree_chopping_df <- data.frame(number_of_groups = tree_group_points, operator=seq(1,1000)*0.0001)
+
+tree_chopping_df %>%
+  ggplot(aes(x=operator, y=number_of_groups)) +
+  #geom_smooth(se=F)+
+  geom_line() +
+  theme_linedraw() +
+  xlab("Position on Tree") +
+  ylab("Number of Groups at Cut")
+
+test_obj <- data.frame(sapply(1:100, function(x) cutree(tclust, h=x*(0.5/100))))
+
+first_image <- data.frame(sapply(1:ncol(test_obj), function(x) make_tree_image(basic_asv_table, test_obj, x, 1)))
+rownames(first_image) <- colnames(basic_asv_table)
+
+first_image_ordered <- first_image[match(rownames(first_image), ultra_tree$tip.label),]
+
+second_image <- data.frame(sapply(1:ncol(test_obj), function(x) make_tree_image(basic_asv_table, test_obj, x, 2)))
+rownames(second_image) <- colnames(basic_asv_table)
+
+second_image_ordered <- second_image[match(rownames(second_image), ultra_tree$tip.label),]
+
+burning_tree_plot_s1 <- first_image_ordered %>%
+  mutate(ASV = rownames(first_image_ordered)) %>%
+  pivot_longer(!ASV, names_to="tree_cut", values_to="asv_group") %>%
+  ggplot(aes(x=factor(tree_cut, level=c(colnames(first_image_ordered))), y=factor(ASV, level=c(basic_tree$tip.label)), fill=asv_group)) +
+  geom_tile() +
+  scale_fill_gradient(high="gold", low="purple") +
+  theme(axis.text.x=element_blank(),
+        axis.line.x = element_blank()) +
+  xlab(label=NULL)
+
+
+burning_tree_plot_s2 <- second_image_ordered %>%
+  mutate(ASV = rownames(second_image_ordered)) %>%
+  pivot_longer(!ASV, names_to="tree_cut", values_to="asv_group") %>%
+  ggplot(aes(x=factor(tree_cut, level=c(colnames(second_image_ordered))), y=factor(ASV, level=c(basic_tree$tip.label)), fill=asv_group)) +
+  geom_tile() +
+  scale_fill_gradient(high="gold", low="purple") +
+  theme(axis.text.x=element_blank(),
+        axis.line.x = element_blank()) +
+  xlab(label=NULL)
+
+comb_plot <- ggarrange(burning_tree_plot_s1, burning_tree_plot_s2)
+
+
+```
+
+
+
+Objectives for tonight:
+1. look at the distn of abundances for the taxa in question
+2. filter the table if it has the taxa that have good names
+3. Look at several images to get an idea of the elbow point
+4. Build a couple of sample images
+5. Scale it up for all samples
+
+What are we bringing to the table that is novel?
+1. Can we deal with zero inflation issues that result from taking a bunch of non-informative information?
+  a. there is very likely an elbow point at which new information is not being assimilated
+2. Can we build a unifying framework so that we get robust classification across disease states?
+3. How does this model compare with other ML models that are trained on these data?
+4. One other question that arises for me, has to do with the multi-omic embedding. 
+5. Could we cluster metagenomic sequences in UniRef90 into protein families, then perform a convolutional operation on those for classification purposes?
+  a. One idea, would be to first perform a 16s feature selection approach, then use the subtending metagenomic features for classification. Like what functions from disease-linked bugs are important for classification across diseases?
+  b. a sub question that arises for me, is if there are consistent classes of functions that display robust association with diseases, which are from specific microbes that are linked to those diseases. For instance, if we find that there is specific mannose-metabolism genes from multiple bugs that are strongly linked to diabetes, is a quorum of functional association across microbes indicative of modules of interest?
+6. One idea that I'm nearly certain would be novel, would be comparing the predictive import of various functional modules using CNNs or GNNs, where the data is structured according to the phylogenetic tree
+  a. This would allow us to be more specific about the specific microbial functions that are associated with some disease outcome
+  b. Additionally, it could clarify "how" microbes are doing what they're doing
+  c. This same approach would have broad application across metagenome types
+  d. do we have information that ties certain metagenomic modules to taxonomic mappings?
+
+
+
+  
+
+
+
+
+
+
 
 
