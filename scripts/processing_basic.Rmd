@@ -22,7 +22,7 @@ library(mia)
 library(phangorn)
 =======
 library(ape)
->>>>>>> 4621bfd50ee71e225b1dc84da8bbb07cea2872ab
+
 ## read in your tree
 basic_tree <- ape::read.tree("C:/Users/hammera/Documents/R_projects/Microbiopics/data/asv_prunedguides_rooted.nwk")
 
