@@ -21,6 +21,7 @@ library(ggtree)
 library(curatedMetagenomicData)
 library(DT)
 library(mia)
+library(phangorn)
 ## read in your tree
 basic_tree <- read.tree("C:/Users/hammera/Documents/R_projects/Microbiopics/data/asv_prunedguides_rooted.nwk")
 
