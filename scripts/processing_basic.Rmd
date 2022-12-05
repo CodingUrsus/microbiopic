@@ -18,10 +18,12 @@ library(phyloseq)
 library(curatedMetagenomicData)
 library(DT)
 library(mia)
-<<<<<<< HEAD
+
 library(phangorn)
-=======
+
 library(ape)
+
+library(ggtree)
 
 ## read in your tree
 basic_tree <- ape::read.tree("C:/Users/hammera/Documents/R_projects/Microbiopics/data/asv_prunedguides_rooted.nwk")
@@ -80,6 +82,14 @@ make_tree_image <- function(the_asv_table, the_grouped_output, group_level, asv_
   mutate(group_count = sum(asv_counts)) %>%
   ungroup()
   return(grouped_tree_slice$group_count)
+}
+
+
+# this function will cut the tree at pre-determined points
+# this was optimized for cutting at points where the change in ASV number was greatest
+cut_at_specific_points <- function(tree_of_choice, number_cuts, cut_position){
+  membership_at_cuts <- sapply(1:number_cuts, function(x) cutree(tree_of_choice, h=cut_position[x]))
+  return(membership_at_cuts)
 }
 ```
 
@@ -311,70 +321,111 @@ matched_count_table <- matched_subsetted_count_table
 rownames(matched_count_table) <- matched_count_df$microbe_names # uses same names for tree and count table
 ```
 
-```{r format_and_cut_matched_tree}
-# need to cut up the tree, visualize the number of groups to identify a subsetting point
-ultra_tree <- make_ultrametric_tree(matched_tree)
+```{r build_tree_images}
+sum_microbe_abundances <- data.frame("taxa_sums" = rowSums(matched_count_table)) %>%
+rownames_to_column(var="microbes") %>%
+  arrange(desc(taxa_sums)) %>%
+  top_n(500)
 
-tclust <- as.hclust(ultra_tree)
+filtered_tree <- ape::keep.tip(matched_tree, sum_microbe_abundances$microbes)
 
-tree_group_points <- determine_tree_chopping_point(tclust)
+flipped_count_table <- matched_count_table %>%
+  rownames_to_column(var="microbes") %>%
+  pivot_longer(!microbes,
+               values_to="counts",
+               names_to = "Samples") %>%
+  pivot_wider(names_from = microbes,
+              values_from = counts) %>%
+  column_to_rownames(var="Samples") %>%
+  dplyr::select(sum_microbe_abundances$microbes)
 
-tree_chopping_df <- data.frame(number_of_groups = tree_group_points, operator=seq(1,1000)*0.0001)
+
+
+filtered_ultra_tree <- make_ultrametric_tree(filtered_tree)
+
+filter_clust <- as.hclust(filtered_ultra_tree)
+
+tree_group_points <- determine_tree_chopping_point(filter_clust)
+
+tree_chopping_df <- data.frame(number_of_groups = tree_group_points, operator=seq(1,1000)*0.002) %>%
+  mutate(previous_step_taxa_number = c(500,(number_of_groups[1:999]))) %>%
+  mutate(change_in_taxa = previous_step_taxa_number-number_of_groups) %>%
+  arrange(desc(change_in_taxa)) %>%
+  top_n(80) %>%
+  arrange(operator)
+
 
 tree_chopping_df %>%
   ggplot(aes(x=operator, y=number_of_groups)) +
-  #geom_smooth(se=F)+
-  geom_line() +
+  geom_smooth(se=F)+
   theme_linedraw() +
   xlab("Position on Tree") +
   ylab("Number of Groups at Cut")
 
-test_obj <- data.frame(sapply(1:100, function(x) cutree(tclust, h=x*(0.5/100))))
 
-first_image <- data.frame(sapply(1:ncol(test_obj), function(x) make_tree_image(basic_asv_table, test_obj, x, 1)))
-rownames(first_image) <- colnames(basic_asv_table)
+test_tree_cut <- data.frame(sapply(1:length(tree_chopping_df$operator), function(x) cutree(filter_clust, h=tree_chopping_df$operator[x])))
 
-first_image_ordered <- first_image[match(rownames(first_image), ultra_tree$tip.label),]
 
-second_image <- data.frame(sapply(1:ncol(test_obj), function(x) make_tree_image(basic_asv_table, test_obj, x, 2)))
-rownames(second_image) <- colnames(basic_asv_table)
+first_image <- data.frame(sapply(1:ncol(test_tree_cut), function(x) make_tree_image(flipped_count_table, test_tree_cut, x, 1)))
+rownames(first_image) <- colnames(flipped_count_table)
 
-second_image_ordered <- second_image[match(rownames(second_image), ultra_tree$tip.label),]
+first_image_ordered <- first_image[match(rownames(first_image), filtered_tree$tip.label),]
+
+
+second_image <- data.frame(sapply(1:ncol(test_tree_cut), function(x) make_tree_image(flipped_count_table, test_tree_cut, x, 2)))
+rownames(second_image) <- colnames(flipped_count_table)
+
+second_image_ordered <- second_image[match(rownames(second_image), filtered_tree$tip.label),]
 
 burning_tree_plot_s1 <- first_image_ordered %>%
   mutate(ASV = rownames(first_image_ordered)) %>%
   pivot_longer(!ASV, names_to="tree_cut", values_to="asv_group") %>%
-  ggplot(aes(x=factor(tree_cut, level=c(colnames(first_image_ordered))), y=factor(ASV, level=c(basic_tree$tip.label)), fill=asv_group)) +
+  ggplot(aes(x=factor(tree_cut, level=c(colnames(first_image_ordered))), y=factor(ASV, level=c(filtered_tree$tip.label)), fill=asv_group)) +
   geom_tile() +
-  scale_fill_gradient(high="gold", low="purple") +
+  scale_fill_gradient(high="darkblue", low="white") +
   theme(axis.text.x=element_blank(),
         axis.line.x = element_blank()) +
   xlab(label=NULL)
 
-
 burning_tree_plot_s2 <- second_image_ordered %>%
   mutate(ASV = rownames(second_image_ordered)) %>%
   pivot_longer(!ASV, names_to="tree_cut", values_to="asv_group") %>%
-  ggplot(aes(x=factor(tree_cut, level=c(colnames(second_image_ordered))), y=factor(ASV, level=c(basic_tree$tip.label)), fill=asv_group)) +
+  ggplot(aes(x=factor(tree_cut, level=c(colnames(second_image_ordered))), y=factor(ASV, level=c(filtered_tree$tip.label)), fill=asv_group)) +
   geom_tile() +
-  scale_fill_gradient(high="gold", low="purple") +
+  scale_fill_gradient(high="darkblue", low="white") +
   theme(axis.text.x=element_blank(),
         axis.line.x = element_blank()) +
   xlab(label=NULL)
 
 comb_plot <- ggarrange(burning_tree_plot_s1, burning_tree_plot_s2)
 
+for(sample_num in 1:nrow(flipped_count_table)){
+  first_image <- data.frame(sapply(1:ncol(test_tree_cut), function(x) make_tree_image(flipped_count_table, test_tree_cut, x, sample_num)))
+  rownames(first_image) <- colnames(flipped_count_table)
+  first_image_ordered <- first_image[match(rownames(first_image), filtered_tree$tip.label),]
+  new_data_object_name <- paste0("C:/Users/hammera/Documents/R_projects/Microbiopics/results/sample_pics/pic_dim_500_by_81/image_", sample_num, ".rds")
+  saveRDS(first_image_ordered, new_data_object_name)
+}
+
+make_image_list <- function(your_tree, your_count_table, tree_cutting_plan, sample_index){
+  an_image <- data.frame(sapply(1:ncol(tree_cutting_plan), function(x) make_tree_image(your_count_table, tree_cutting_plan, x, sample_index)))
+  rownames(an_image) <- colnames(your_count_table)
+  an_ordered_image <- an_image[match(rownames(an_image), your_tree$tip.label),]
+  return(an_ordered_image)
+}
+
+complete_image_set_list <- lapply(c(seq(1:nrow(flipped_count_table))), function(x) make_image_list(filtered_tree, flipped_count_table, test_tree_cut, x))
 
 ```
 
 
+In the Pop-Phy-CNN paper they identify a subset of non-rare taxa to include in their analysis
+The paper that they cite only takes the microbes that are in the top 500 in terms of abundance
+This is one way to perform feature selection, but what if we took only the taxa that are useful for disease classification?
 
-Objectives for tonight:
-1. look at the distn of abundances for the taxa in question
-2. filter the table if it has the taxa that have good names
-3. Look at several images to get an idea of the elbow point
-4. Build a couple of sample images
-5. Scale it up for all samples
+Obviously this would be scaled up for 
+
+
 
 What are we bringing to the table that is novel?
 1. Can we deal with zero inflation issues that result from taking a bunch of non-informative information?
