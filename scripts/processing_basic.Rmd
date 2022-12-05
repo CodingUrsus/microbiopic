@@ -18,8 +18,13 @@ library(phyloseq)
 library(curatedMetagenomicData)
 library(DT)
 library(mia)
+
+library(phangorn)
+
 library(ape)
+
 library(ggtree)
+
 ## read in your tree
 basic_tree <- ape::read.tree("C:/Users/hammera/Documents/R_projects/Microbiopics/data/asv_prunedguides_rooted.nwk")
 
