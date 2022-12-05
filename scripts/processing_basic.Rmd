@@ -401,6 +401,16 @@ for(sample_num in 1:nrow(flipped_count_table)){
   new_data_object_name <- paste0("C:/Users/hammera/Documents/R_projects/Microbiopics/results/sample_pics/pic_dim_500_by_81/image_", sample_num, ".rds")
   saveRDS(first_image_ordered, new_data_object_name)
 }
+
+make_image_list <- function(your_tree, your_count_table, tree_cutting_plan, sample_index){
+  an_image <- data.frame(sapply(1:ncol(tree_cutting_plan), function(x) make_tree_image(your_count_table, tree_cutting_plan, x, sample_index)))
+  rownames(an_image) <- colnames(your_count_table)
+  an_ordered_image <- an_image[match(rownames(an_image), your_tree$tip.label),]
+  return(an_ordered_image)
+}
+
+complete_image_set_list <- lapply(c(seq(1:nrow(flipped_count_table))), function(x) make_image_list(filtered_tree, flipped_count_table, test_tree_cut, x))
+
 ```
 
 
