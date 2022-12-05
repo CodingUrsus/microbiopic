@@ -78,6 +78,14 @@ make_tree_image <- function(the_asv_table, the_grouped_output, group_level, asv_
   ungroup()
   return(grouped_tree_slice$group_count)
 }
+
+
+# this function will cut the tree at pre-determined points
+# this was optimized for cutting at points where the change in ASV number was greatest
+cut_at_specific_points <- function(tree_of_choice, number_cuts, cut_position){
+  membership_at_cuts <- sapply(1:number_cuts, function(x) cutree(tree_of_choice, h=cut_position[x]))
+  return(membership_at_cuts)
+}
 ```
 
 ```{r tree_cutters}
@@ -342,7 +350,6 @@ tree_chopping_df <- data.frame(number_of_groups = tree_group_points, operator=se
   arrange(operator)
 
 
-
 tree_chopping_df %>%
   ggplot(aes(x=operator, y=number_of_groups)) +
   geom_smooth(se=F)+
@@ -350,17 +357,19 @@ tree_chopping_df %>%
   xlab("Position on Tree") +
   ylab("Number of Groups at Cut")
 
-test_obj <- data.frame(sapply(1:100, function(x) cutree(tclust, h=x*(0.5/100))))
 
-first_image <- data.frame(sapply(1:ncol(test_obj), function(x) make_tree_image(basic_asv_table, test_obj, x, 1)))
-rownames(first_image) <- colnames(basic_asv_table)
+test_tree_cut <- data.frame(sapply(1:length(tree_chopping_df$operator), function(x) cutree(filter_clust, h=tree_chopping_df$operator[x])))
 
-first_image_ordered <- first_image[match(rownames(first_image), ultra_tree$tip.label),]
+
+first_image <- data.frame(sapply(1:ncol(test_tree_cut), function(x) make_tree_image(flipped_count_table, test_tree_cut, x, 1)))
+rownames(first_image) <- colnames(flipped_count_table)
+
+first_image_ordered <- first_image[match(rownames(first_image), filtered_tree$tip.label),]
 
 second_image <- data.frame(sapply(1:ncol(test_obj), function(x) make_tree_image(basic_asv_table, test_obj, x, 2)))
 rownames(second_image) <- colnames(basic_asv_table)
 
-second_image_ordered <- second_image[match(rownames(second_image), ultra_tree$tip.label),]
+second_image_ordered <- second_image[match(rownames(second_image), filtered_tree$tip.label),]
 
 burning_tree_plot_s1 <- first_image_ordered %>%
   mutate(ASV = rownames(first_image_ordered)) %>%
