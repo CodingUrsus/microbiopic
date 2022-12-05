@@ -366,41 +366,41 @@ rownames(first_image) <- colnames(flipped_count_table)
 
 first_image_ordered <- first_image[match(rownames(first_image), filtered_tree$tip.label),]
 
-second_image <- data.frame(sapply(1:ncol(test_obj), function(x) make_tree_image(basic_asv_table, test_obj, x, 2)))
-rownames(second_image) <- colnames(basic_asv_table)
+
+second_image <- data.frame(sapply(1:ncol(test_tree_cut), function(x) make_tree_image(flipped_count_table, test_tree_cut, x, 2)))
+rownames(second_image) <- colnames(flipped_count_table)
 
 second_image_ordered <- second_image[match(rownames(second_image), filtered_tree$tip.label),]
 
 burning_tree_plot_s1 <- first_image_ordered %>%
   mutate(ASV = rownames(first_image_ordered)) %>%
   pivot_longer(!ASV, names_to="tree_cut", values_to="asv_group") %>%
-  ggplot(aes(x=factor(tree_cut, level=c(colnames(first_image_ordered))), y=factor(ASV, level=c(basic_tree$tip.label)), fill=asv_group)) +
+  ggplot(aes(x=factor(tree_cut, level=c(colnames(first_image_ordered))), y=factor(ASV, level=c(filtered_tree$tip.label)), fill=asv_group)) +
   geom_tile() +
-  scale_fill_gradient(high="gold", low="purple") +
+  scale_fill_gradient(high="darkblue", low="white") +
   theme(axis.text.x=element_blank(),
         axis.line.x = element_blank()) +
   xlab(label=NULL)
 
-
 burning_tree_plot_s2 <- second_image_ordered %>%
   mutate(ASV = rownames(second_image_ordered)) %>%
   pivot_longer(!ASV, names_to="tree_cut", values_to="asv_group") %>%
-  ggplot(aes(x=factor(tree_cut, level=c(colnames(second_image_ordered))), y=factor(ASV, level=c(basic_tree$tip.label)), fill=asv_group)) +
+  ggplot(aes(x=factor(tree_cut, level=c(colnames(second_image_ordered))), y=factor(ASV, level=c(filtered_tree$tip.label)), fill=asv_group)) +
   geom_tile() +
-  scale_fill_gradient(high="gold", low="purple") +
+  scale_fill_gradient(high="darkblue", low="white") +
   theme(axis.text.x=element_blank(),
         axis.line.x = element_blank()) +
   xlab(label=NULL)
 
 comb_plot <- ggarrange(burning_tree_plot_s1, burning_tree_plot_s2)
 
-
-
-
-
-
-
-
+for(sample_num in 1:nrow(flipped_count_table)){
+  first_image <- data.frame(sapply(1:ncol(test_tree_cut), function(x) make_tree_image(flipped_count_table, test_tree_cut, x, sample_num)))
+  rownames(first_image) <- colnames(flipped_count_table)
+  first_image_ordered <- first_image[match(rownames(first_image), filtered_tree$tip.label),]
+  new_data_object_name <- paste0("C:/Users/hammera/Documents/R_projects/Microbiopics/results/sample_pics/pic_dim_500_by_81/image_", sample_num, ".rds")
+  saveRDS(first_image_ordered, new_data_object_name)
+}
 ```
 
 
