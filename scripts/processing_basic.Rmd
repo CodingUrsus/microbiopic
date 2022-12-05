@@ -19,6 +19,7 @@ library(curatedMetagenomicData)
 library(DT)
 library(mia)
 library(ape)
+library(ggtree)
 ## read in your tree
 basic_tree <- ape::read.tree("C:/Users/hammera/Documents/R_projects/Microbiopics/data/asv_prunedguides_rooted.nwk")
 
@@ -307,20 +308,44 @@ matched_count_table <- matched_subsetted_count_table
 rownames(matched_count_table) <- matched_count_df$microbe_names # uses same names for tree and count table
 ```
 
-```{r format_and_cut_matched_tree}
-# need to cut up the tree, visualize the number of groups to identify a subsetting point
-ultra_tree <- make_ultrametric_tree(matched_tree)
+```{r build_tree_images}
+sum_microbe_abundances <- data.frame("taxa_sums" = rowSums(matched_count_table)) %>%
+rownames_to_column(var="microbes") %>%
+  arrange(desc(taxa_sums)) %>%
+  top_n(500)
 
-tclust <- as.hclust(ultra_tree)
+filtered_tree <- ape::keep.tip(matched_tree, sum_microbe_abundances$microbes)
 
-tree_group_points <- determine_tree_chopping_point(tclust)
+flipped_count_table <- matched_count_table %>%
+  rownames_to_column(var="microbes") %>%
+  pivot_longer(!microbes,
+               values_to="counts",
+               names_to = "Samples") %>%
+  pivot_wider(names_from = microbes,
+              values_from = counts) %>%
+  column_to_rownames(var="Samples") %>%
+  dplyr::select(sum_microbe_abundances$microbes)
 
-tree_chopping_df <- data.frame(number_of_groups = tree_group_points, operator=seq(1,1000)*0.0001)
+
+
+filtered_ultra_tree <- make_ultrametric_tree(filtered_tree)
+
+filter_clust <- as.hclust(filtered_ultra_tree)
+
+tree_group_points <- determine_tree_chopping_point(filter_clust)
+
+tree_chopping_df <- data.frame(number_of_groups = tree_group_points, operator=seq(1,1000)*0.002) %>%
+  mutate(previous_step_taxa_number = c(500,(number_of_groups[1:999]))) %>%
+  mutate(change_in_taxa = previous_step_taxa_number-number_of_groups) %>%
+  arrange(desc(change_in_taxa)) %>%
+  top_n(80) %>%
+  arrange(operator)
+
+
 
 tree_chopping_df %>%
   ggplot(aes(x=operator, y=number_of_groups)) +
-  #geom_smooth(se=F)+
-  geom_line() +
+  geom_smooth(se=F)+
   theme_linedraw() +
   xlab("Position on Tree") +
   ylab("Number of Groups at Cut")
@@ -361,16 +386,22 @@ burning_tree_plot_s2 <- second_image_ordered %>%
 comb_plot <- ggarrange(burning_tree_plot_s1, burning_tree_plot_s2)
 
 
+
+
+
+
+
+
 ```
 
 
+In the Pop-Phy-CNN paper they identify a subset of non-rare taxa to include in their analysis
+The paper that they cite only takes the microbes that are in the top 500 in terms of abundance
+This is one way to perform feature selection, but what if we took only the taxa that are useful for disease classification?
 
-Objectives for tonight:
-1. look at the distn of abundances for the taxa in question
-2. filter the table if it has the taxa that have good names
-3. Look at several images to get an idea of the elbow point
-4. Build a couple of sample images
-5. Scale it up for all samples
+Obviously this would be scaled up for 
+
+
 
 What are we bringing to the table that is novel?
 1. Can we deal with zero inflation issues that result from taking a bunch of non-informative information?
