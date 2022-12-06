@@ -414,7 +414,20 @@ make_image_list <- function(your_tree, your_count_table, tree_cutting_plan, samp
   return(an_ordered_image)
 }
 
-complete_image_set_list <- lapply(c(seq(1:nrow(flipped_count_table))), function(x) make_image_list(filtered_tree, flipped_count_table, test_tree_cut, x))
+#complete_image_set_list <- lapply(c(seq(1:nrow(flipped_count_table))), function(x) make_image_list(filtered_tree, flipped_count_table, test_tree_cut, x))
+
+imd <- data.frame(sample_data(adults_rel_abund)) %>%
+  rownames_to_column(var="sample_name")
+
+image_metadata <- data.frame("sample_name" = rownames(flipped_count_table),
+                             "image_list_index" = seq(1:nrow(flipped_count_table))) %>%
+  left_join(imd)
+
+saveRDS(image_metadata, "C:/Users/hammera/Documents/R_projects/Microbiopics/results/sample_pics/small_pic_test/microbe500_image_metadata.rds")
+complete_image_set_list <- readRDS("C:/Users/hammera/Documents/R_projects/Microbiopics/results/sample_pics/small_pic_test/microbe500_image_list.rds")
+
+
+
 
 ```
 
