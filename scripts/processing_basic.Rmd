@@ -18,7 +18,7 @@ library(phyloseq)
 library(curatedMetagenomicData)
 library(DT)
 library(mia)
-
+library(abind)
 library(phangorn)
 
 library(ape)
@@ -423,7 +423,7 @@ image_metadata <- data.frame("sample_name" = rownames(flipped_count_table),
                              "image_list_index" = seq(1:nrow(flipped_count_table))) %>%
   left_join(imd)
 
-saveRDS(image_metadata, "C:/Users/hammera/Documents/R_projects/Microbiopics/results/sample_pics/small_pic_test/microbe500_image_metadata.rds")
+##saveRDS(image_metadata, "C:/Users/hammera/Documents/R_projects/Microbiopics/results/sample_pics/small_pic_test/microbe500_image_metadata.rds")
 complete_image_set_list <- readRDS("C:/Users/hammera/Documents/R_projects/Microbiopics/results/sample_pics/small_pic_test/microbe500_image_list.rds")
 
 
@@ -432,51 +432,75 @@ complete_image_set_list <- readRDS("C:/Users/hammera/Documents/R_projects/Microb
 ```
 
 ```{r test_train_split}
-set.seed(1975)
-all_indices <- seq(1:nrow(flipped_count_table))
-training_indices <- sample(all_indices, size=round(0.80*length(all_indices)), replace=F)
-testing_indices <- all_indices[!(all_indices %in% training_indices)]
-
 # need to generate a list of matrices for the data so that it's formatted like for other CNN problems
 
-complete_image_set_list <- readRDS("C:/Users/hammera/Documents/R_projects/Microbiopics/results/sample_pics/small_pic_test/microbe500_image_list.rds")
-View(as.matrix(complete_image_set_list))
-str(complete_image_set_list)
+#complete_image_set_list <- readRDS("C:/Users/hammera/Documents/R_projects/Microbiopics/results/sample_pics/small_pic_test/microbe500_image_list.rds")
+
+complete_image_matrix_list <- readRDS("C:/Users/hammera/Documents/R_projects/Microbiopics/results/sample_pics/small_pic_test/microbe500_matrix_list.rds")
+
+tiny_list_set <- complete_image_matrix_list[c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)]
+
+abind_test <- abind(tiny_list_set, along=0) ## ding ding ding, this is the way to do it
+arr_ytrain <- to_categorical(c(0,1,1,0,0,0,1,0,0,1), 2) ## just a demo of how it might be done
+
+total_sample_metadata <- readRDS("C:/Users/hammera/Documents/R_projects/Microbiopics/results/sample_pics/small_pic_test/microbe500_image_metadata.rds")
+
+tiny_metadata <- total_sample_metadata %>%
+  mutate(data_indices = seq(1:9885)) %>%
+  filter(study_name == "QinJ_2012")
+
+all_disease_condition_counts <- total_sample_metadata %>%
+  group_by(study_name, disease) %>%
+  summarize(study_disease_count = n())
+
+
+set.seed(1975)
+all_indices <- seq(1:nrow(tiny_metadata))
+training_indices <- sample(all_indices, size=round(0.80*length(all_indices)), replace=F)
+testing_indices <- all_indices[!(all_indices %in% training_indices)]
+train_metadata <- tiny_metadata[c(training_indices),]
+test_metadata <- tiny_metadata[c(testing_indices),]
+
+
+train_diabetes_images <- complete_image_matrix_list[c(train_metadata$image_list_index)]
+trainx_diabetes <- abind(train_diabetes_images, along=0)
+trainy_diabetes <- to_categorical(ifelse(train_metadata$study_condition!="T2D", 0, 1), 2)
+
+test_diabetes_images <- complete_image_matrix_list[c(test_metadata$image_list_index)]
+testx_diabetes <- abind(test_diabetes_images, along=0)
+testy_diabetes <- to_categorical(ifelse(train_metadata$study_condition!="T2D", 0, 1), 2)
+
 
 ```
 
 ```{r}
 library(keras)
 ## really basic first-pass model architecture
-model <- keras_model_sequential()
-model %>%
- layer_conv_2d(filters = 32,
- kernel_size = c(3,3),
- activation = 'relu',
- input_shape = c(28,28,1)) %>%
- layer_conv_2d(filters = 64,
- kernel_size = c(3,3),
- activation = 'relu') %>%
- layer_max_pooling_2d(pool_size = c(2,2)) %>%
- layer_dropout(rate = 0.25) %>%
- layer_flatten() %>%
- layer_dense(units = 64, activation = 'relu') %>%
- layer_dropout(rate = 0.25) %>%
- layer_dense(units = 10, activation = 'softmax')
+conv_nn <- keras_model_sequential() %>%
+  layer_conv_2d(filter=96, kernel_size = c(3,3), padding="same",
+  input_shape = c(500,81,1), activation="relu") %>%
+  layer_max_pooling_2d(pool_size=c(2,2)) %>%
+  layer_conv_2d(filter=16, kernel_size=c(2,2), activation = "relu", padding="same") %>%
+  layer_max_pooling_2d(pool_size = c(2,2)) %>%
+  layer_flatten() %>%
+  layer_dense(units=256, activation = "relu") %>%
+  layer_dense(2, activation="softmax")
 
-# note that if you're working with a 3d image you'll need to use a 3d convolutional layer
-# Compile model
-model %>% compile(loss = 'categorical_crossentropy',
- optimizer = optimizer_adadelta(),
- metrics = 'accuracy')
+conv_nn %>% compile(
+  loss = "categorical_crossentropy",
+  optimizer = optimizer_rmsprop(),
+  metrics = "accuracy"
+)
 
-# Fit model
-model_one <- model %>% fit(trainx,
- trainy,
- epochs = 15,
- batch_size = 128,
- validation_split = 0.2)
-plot(model_one)
+fit_conv_nn <- conv_nn %>% fit(trainx_diabetes, trainy_diabetes,
+                               batch_size=16,
+                               epochs=10, 
+                               verbose=2)
+
+fit_conv_nn %>%
+  evaluate(testx_diabetes, testy_diabetes)
+
+
 
 ```
 
