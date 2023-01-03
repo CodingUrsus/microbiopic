@@ -20,9 +20,8 @@ library(DT)
 library(mia)
 library(abind)
 library(phangorn)
-
+library(keras)
 library(ape)
-
 library(ggtree)
 
 ## read in your tree
@@ -428,7 +427,6 @@ complete_image_set_list <- readRDS("C:/Users/hammera/Documents/R_projects/Microb
 
 
 
-
 ```
 
 ```{r test_train_split}
@@ -436,18 +434,14 @@ complete_image_set_list <- readRDS("C:/Users/hammera/Documents/R_projects/Microb
 
 #complete_image_set_list <- readRDS("C:/Users/hammera/Documents/R_projects/Microbiopics/results/sample_pics/small_pic_test/microbe500_image_list.rds")
 
+##complete_image_array <- ("C:/Users/hammera/Documents/R_projects/Microbiopics/results/sample_pics/small_pic_test/microbe500_image_array.rds")
+
 complete_image_matrix_list <- readRDS("C:/Users/hammera/Documents/R_projects/Microbiopics/results/sample_pics/small_pic_test/microbe500_matrix_list.rds")
-
-tiny_list_set <- complete_image_matrix_list[c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)]
-
-abind_test <- abind(tiny_list_set, along=0) ## ding ding ding, this is the way to do it
-arr_ytrain <- to_categorical(c(0,1,1,0,0,0,1,0,0,1), 2) ## just a demo of how it might be done
 
 total_sample_metadata <- readRDS("C:/Users/hammera/Documents/R_projects/Microbiopics/results/sample_pics/small_pic_test/microbe500_image_metadata.rds")
 
 tiny_metadata <- total_sample_metadata %>%
-  mutate(data_indices = seq(1:9885)) %>%
-  filter(study_name == "QinJ_2012")
+  mutate(data_indices = seq(1:9885))
 
 all_disease_condition_counts <- total_sample_metadata %>%
   group_by(study_name, disease) %>%
@@ -464,27 +458,52 @@ test_metadata <- tiny_metadata[c(testing_indices),]
 
 train_diabetes_images <- complete_image_matrix_list[c(train_metadata$image_list_index)]
 trainx_diabetes <- abind(train_diabetes_images, along=0)
+trainx_diabetes <- trainx_diabetes[,match(filtered_ultra_tree$tip.label, rownames(complete_image_matrix_list[[1]])),]
 trainy_diabetes <- to_categorical(ifelse(train_metadata$study_condition!="T2D", 0, 1), 2)
 
 test_diabetes_images <- complete_image_matrix_list[c(test_metadata$image_list_index)]
 testx_diabetes <- abind(test_diabetes_images, along=0)
-testy_diabetes <- to_categorical(ifelse(train_metadata$study_condition!="T2D", 0, 1), 2)
+testx_diabetes <- testx_diabetes[,match(filtered_ultra_tree$tip.label, rownames(complete_image_matrix_list[[1]])),]
+testy_diabetes <- to_categorical(ifelse(test_metadata$study_condition!="T2D", 0, 1), 2)
+
+demo_tree <- trainx_diabetes[1,,]
+
+reo_dt <- demo_tree[match(filtered_ultra_tree$tip.label, rownames(demo_tree)),]
+
+burning_tree_plot_s1 <- data.frame(testx_diabetes[1,,]) %>%
+  mutate(ASV = rownames(testx_diabetes[1,,])) %>%
+  pivot_longer(!ASV, names_to="tree_cut", values_to="asv_group") %>%
+  ggplot(aes(x=factor(tree_cut, level=c(colnames(demo_tree))), y=factor(ASV, level=c(filtered_ultra_tree$tip.label)), fill=asv_group)) +
+  geom_tile() +
+  scale_fill_gradient(high="gold", low="purple") +
+  theme(axis.line.x = element_blank()) +
+  xlab(label=NULL)
+
+
+burning_tree_plot_s2 <- data.frame(testx_diabetes[2,,]) %>%
+  mutate(ASV = rownames(testx_diabetes[2,,])) %>%
+  pivot_longer(!ASV, names_to="tree_cut", values_to="asv_group") %>%
+  ggplot(aes(x=factor(tree_cut, level=c(colnames(demo_tree))), y=factor(ASV, level=c(filtered_ultra_tree$tip.label)), fill=asv_group)) +
+  geom_tile() +
+  scale_fill_gradient(high="gold", low="purple") +
+  theme(axis.line.x = element_blank()) +
+  xlab(label=NULL)
 
 
 ```
 
 ```{r}
-library(keras)
 ## really basic first-pass model architecture
 conv_nn <- keras_model_sequential() %>%
-  layer_conv_2d(filter=96, kernel_size = c(3,3), padding="same",
-  input_shape = c(500,81,1), activation="relu") %>%
-  layer_max_pooling_2d(pool_size=c(2,2)) %>%
+  layer_conv_2d(filter=32, kernel_size = c(4,4), padding="same", input_shape = c(500,81,1), activation="relu") %>%
+  layer_average_pooling_2d(pool_size = c(3,3), padding="same") %>%
   layer_conv_2d(filter=16, kernel_size=c(2,2), activation = "relu", padding="same") %>%
-  layer_max_pooling_2d(pool_size = c(2,2)) %>%
+  layer_average_pooling_2d(pool_size = c(2,2)) %>%
   layer_flatten() %>%
   layer_dense(units=256, activation = "relu") %>%
   layer_dense(2, activation="softmax")
+
+#summary(conv_nn)
 
 conv_nn %>% compile(
   loss = "categorical_crossentropy",
@@ -493,17 +512,106 @@ conv_nn %>% compile(
 )
 
 fit_conv_nn <- conv_nn %>% fit(trainx_diabetes, trainy_diabetes,
-                               batch_size=16,
-                               epochs=10, 
+                               batch_size=20,
+                               epochs=35,
+                               validation_split = 0.20,
                                verbose=2)
 
-fit_conv_nn %>%
+conv_nn %>%
   evaluate(testx_diabetes, testy_diabetes)
 
 
 
 ```
 
+```{r comparing_models}
+
+
+```
+
+
+
+```{r}
+rm(conv_nn)
+rm(fit_conv_nn)
+```
+
+
+```{r crc_data_prep}
+# make a specific metadata identifier for crc
+crc_metadata <- total_sample_metadata %>%
+  mutate(data_indices = seq(1:9885))
+
+# identify the CRC studies, will select only data from these studies
+crc_studies <- crc_metadata %>%
+  filter(disease=="CRC") %>%
+  select(study_name) %>%
+  unique()
+
+# select just the crc samples that are CRC or control (will think about adenomas later)
+crc_samples <- crc_metadata %>%
+  filter(study_name %in% crc_studies$study_name) %>%
+  filter(study_condition %in% c("CRC", "control")) %>%
+  mutate(dummy_count = 1) %>%
+  mutate(disease_specific_indices = seq(1:sum(dummy_count)))
+
+# identify the indices for the train/test split
+set.seed(1975)
+crc_training_indices <- sample(crc_samples$image_list_index, size=round(0.80*nrow(crc_samples)), replace=F)
+crc_testing_indices <- crc_samples$image_list_index[!(crc_samples$image_list_index %in% crc_training_indices)]
+crc_train_metadata <- crc_metadata[c(crc_training_indices),]
+crc_test_metadata <- crc_metadata[c(crc_testing_indices),]
+
+# make the training data
+train_crc_images <- complete_image_matrix_list[c(crc_train_metadata$image_list_index)]
+trainx_crc <- abind(train_crc_images, along=0)
+trainx_crc <- trainx_crc[,match(filtered_ultra_tree$tip.label, rownames(complete_image_matrix_list[[1]])),]
+trainy_crc <- to_categorical(ifelse(crc_train_metadata$study_condition!="CRC", 1, 0), 2)
+
+# make the test data
+test_crc_images <- complete_image_matrix_list[c(crc_test_metadata$image_list_index)]
+testx_crc <- abind(test_crc_images, along=0)
+testx_crc <- testx_crc[,match(filtered_ultra_tree$tip.label, rownames(complete_image_matrix_list[[1]])),]
+testy_crc <- to_categorical(ifelse(crc_test_metadata$study_condition!="CRC", 1, 0), 2)
+```
+
+
+```{r crc_cnn_model}
+## really basic first-pass model architecture
+crc_conv_nn <- keras_model_sequential() %>%
+  layer_conv_2d(filter=32, kernel_size = c(4,4), padding="same", input_shape = c(500,81,1), activation="relu") %>%
+  layer_average_pooling_2d(pool_size = c(3,3), padding="same") %>%
+  layer_conv_2d(filter=16, kernel_size=c(2,2), activation = "relu", padding="same") %>%
+  layer_average_pooling_2d(pool_size = c(2,2)) %>%
+  layer_flatten() %>%
+  layer_dense(units=256, activation = "relu") %>%
+  layer_dense(2, activation="softmax")
+
+#summary(conv_nn)
+
+crc_conv_nn %>% compile(
+  loss = "categorical_crossentropy",
+  optimizer = "adam",
+  metrics = "accuracy"
+)
+
+fit_crc_conv_nn <- crc_conv_nn %>% fit(trainx_crc, trainy_crc,
+                               batch_size=20,
+                               epochs=35,
+                               validation_split = 0.20,
+                               verbose=2)
+
+crc_conv_nn %>%
+  evaluate(testx_crc, testy_crc)
+```
+
+
+
+# next steps might:
+# 1. extract feature maps
+# 2. tweak the picture-creation algorithm as suggested in the Reiman OG paper
+# 4. experiment with viz and comparison with more metrics than just accuracy
+# 
 
 
 
