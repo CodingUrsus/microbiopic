@@ -579,7 +579,7 @@ testy_crc <- to_categorical(ifelse(crc_test_metadata$study_condition!="CRC", 1, 
 ```{r crc_cnn_model}
 ## really basic first-pass model architecture
 crc_conv_nn <- keras_model_sequential() %>%
-  layer_conv_2d(filter=32, kernel_size = c(4,4), padding="same", input_shape = c(500,81,1), activation="relu") %>%
+  layer_conv_2d(filter=64, kernel_size = c(4,4), padding="same", input_shape = c(500,81,1), activation="relu") %>%
   layer_average_pooling_2d(pool_size = c(3,3), padding="same") %>%
   layer_conv_2d(filter=16, kernel_size=c(2,2), activation = "relu", padding="same") %>%
   layer_average_pooling_2d(pool_size = c(2,2)) %>%
@@ -596,7 +596,7 @@ crc_conv_nn %>% compile(
 )
 
 fit_crc_conv_nn <- crc_conv_nn %>% fit(trainx_crc, trainy_crc,
-                               batch_size=20,
+                               batch_size=8,
                                epochs=35,
                                validation_split = 0.20,
                                verbose=2)
